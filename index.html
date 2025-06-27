@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cricket Shot Tap</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background: #c8e6c9;
+            touch-action: none;
+        }
+        canvas {
+            border: 2px solid #333;
+            width: 100%;
+            max-width: 360px;
+        }
+        #score {
+            font-size: 18px;
+            margin: 8px;
+        }
+        #buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 8px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            font-size: 14px;
+            background: #0288D1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        button:active {
+            background: #01579B;
+        }
+        #retry {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Runs: 0 | Balls: 0/6</div>
+    <div id="buttons">
+        <button id="coverBtn">Cover Drive</button>
+        <button id="pullBtn">Pull Shot</button>
+        <button id="squareBtn">Square Cut</button>
+        <button id="retry">Retry</button>
+    </div>
+    <script>
+        let ball, batsman, runs, balls, gameState;
+        function setup() {
+            let cnv = createCanvas(360, 400);
+            cnv.style('display', 'block');
+            ball = { x: 180, y: 20, speed: 5, hit: false };
+            batsman = { x: 180, y: 360, shot: null };
+            runs = 0; balls = 0; gameState = 'play';
+            updateScore();
+            document.getElementById('coverBtn').addEventListener('touchstart', () => batsman.shot = 'cover');
+            document.getElementById('pullBtn').addEventListener('touchstart', () => batsman.shot = 'pull');
+            document.getElementById('squareBtn').addEventListener('touchstart', () => batsman.shot = 'square');
+            document.getElementById('retry').addEventListener('touchstart', () => { if (gameState !== 'play') setup(); });
+        }
+        function draw() {
+            background(0, 128, 0);
+            fill(255); rect(175, 350, 10, 20); // Stumps
+            fill(255, 0, 0); ellipse(ball.x, ball.y, 8, 8); // Ball
+            fill(255); rect(batsman.x - 10, batsman.y, 20, 10); // Batsman
+            if (batsman.shot) { fill(255, 255, 0); rect(batsman.x - 15, batsman.y - 10, 30, 10); } // Bat swing
+            if (!ball.hit) {
+                ball.y += ball.speed;
+                if (ball.y > 350 && ball.y < 360 && Math.abs(ball.x - batsman.x) < 15) {
+                    if (batsman.shot) {
+                        let outcomes = {
+                            'cover': [1, 2, 4], // Cover Drive: 1, 2, or 4 runs
+                            'pull': [2, 4, 6], // Pull Shot: 2, 4, or 6 runs
+                            'square': [2, 4, 'Wicket'] // Square Cut: 2, 4, or out
+                        }[batsman.shot];
+                        let weights = {
+                            'cover': [0.4, 0.3, 0.3], // 40% 1 run, 30% 2 runs, 30% 4 runs
+                            'pull': [0.3, 0.4, 0.3], // 30% 2 runs, 40% 4 runs, 30% 6 runs
+                            'square': [0.4, 0.4, 0.2] // 40% 2 runs, 40% 4 runs, 20% Wicket
+                        }[batsman.shot];
+                        let result = random(outcomes, weights);
+                        if (result === 'Wicket') {
+                            gameState = 'out';
+                        } else {
+                            runs += result;
+                            ball.hit = true;
+                        }
+                        updateScore();
+                    } else {
+                        gameState = 'out';
+                    }
+                } else if (ball.y > height) {
+                    balls++;
+                    ball.hit = true;
+                    updateScore();
+                    if (balls >= 6) gameState = 'over';
+                }
+            } else if (frameCount % 30 === 0) {
+                resetBall();
+            }
+            if (batsman.shot) setTimeout(() => batsman.shot = null, 150);
+            if (gameState !== 'play') {
+                fill(255); textSize(20); textAlign(CENTER);
+                text(gameState === 'out' ? 'OUT!' : 'Over! Runs: ' + runs, 180, 200);
+                document.getElementById('coverBtn').style.display = 'none';
+                document.getElementById('pullBtn').style.display = 'none';
+                document.getElementById('squareBtn').style.display = 'none';
+                document.getElementById('retry').style.display = 'block';
+            }
+        }
+        function resetBall() {
+            ball = { x: random(160, 200), y: 20, speed: random(4, 6), hit: false };
+            batsman.shot = null;
+        }
+        function updateScore() {
+            document.getElementById('score').innerText = `Runs: ${runs} | Balls: ${balls}/6`;
+        }
+    </script>
+</body>
+</html>
